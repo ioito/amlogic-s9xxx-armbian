@@ -23,7 +23,7 @@ on:
       armbian_board:
         description: "Select device board."
         required: false
-        default: "amlogic"
+        default: "q1"
         type: choice
         options:
           - allwinner
@@ -130,6 +130,7 @@ on:
           - panther-x2
           - photonicat
           - quarkpi-ca2
+          - q1
           - r66s
           - r68s
           - recomputer-rk3576-devkit
@@ -272,7 +273,7 @@ on:
       armbian_kernel:
         description: "Select kernel version."
         required: false
-        default: "6.12.y_6.18.y"
+        default: "6.18.y"
         type: choice
         options:
           - 5.10.y
@@ -289,9 +290,10 @@ on:
       kernel_repo:
         description: "Set the kernel repository."
         required: false
-        default: "ophub/kernel"
+        default: "ioito/kernel"
         type: choice
         options:
+          - ioito/kernel
           - ophub/kernel
       kernel_usage:
         description: "Set the tags of the stable kernel."
@@ -475,7 +477,7 @@ jobs:
           gh_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Rebuild Armbian for target boards
-        uses: ophub/amlogic-s9xxx-armbian@main
+        uses: ioito/amlogic-s9xxx-armbian@main
         if: ${{ steps.clean.outputs.status == 'success' && !cancelled() }}
         with:
           build_target: armbian

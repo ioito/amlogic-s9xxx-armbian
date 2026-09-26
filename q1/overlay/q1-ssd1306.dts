@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// ============================================================================
+// 魔云腾 Q1 (RK3588) - SSD1306 128x64 OLED on I2C 用户态设备树覆盖层
+// ----------------------------------------------------------------------------
+// 适用内核: ophub kernel_stable 6.18.y (已内置 CONFIG_DRM_SSD130X=m
+//           及 CONFIG_DRM_SSD130X_I2C=m，无需自行编译内核)
+//
+// 【重要】主线内核的 SSD1306 驱动走 DRM panel 绑定，compatible 必须用
+//          "solomon,ssd1306"（不是旧 fbdev 驱动的 "solomon,ssd1307fb-i2c"）。
+//
+// 【总线探测】默认挂在 i2c6 (@fec80000) @ 0x3c。魔云腾 OLED 实际走哪条总线
+//          原厂 DTB 未给出，必须先用 q1-i2c-oled-probe.sh 探测：
+//            sh q1-i2c-oled-probe.sh
+//          若 OLED 在 i2c4 (@feac0000) 或 i2c7 (@fec90000)，把下面的
+//          &i2c6 改成 &i2c4 / &i2c7 即可（标签在 rk3588.dtsi 中已定义）。
+//          常见 7 位地址: 0x3c (默认), 0x3d (ADDR 脚拉高时)。
+//
+// 【编译与安装】(在刷好的 Armbian 上执行)
+//   sudo apt-get install -y device-tree-compiler i2c-tools
+//   cd /boot/overlay-user
+//   sudo cp q1-ssd1306.dts .
+//   sudo dtc -O dtb -o q1-ssd1306.dtbo -@ q1-ssd1306.dts
+//   # 在 /boot/armbianEnv.txt 的 user_overlays 加上 q1-ssd1306:
+//   echo 'user_overlays=q1-ssd1306' | sudo tee -a /boot/armbianEnv.txt
+//   sudo reboot
+//
+// 【验证】
+//   ls /sys/bus/i2c/devices/*/  | grep -i oled      # 设备已挂载
+//   ls /dev/fb*                                      # DRM fbdev 帧缓冲
+//   # 亮屏测试 (把 framebuffer 画白):
+//   sudo sh -c 'echo -n "Hello Q1" > /dev/tty1'      # 或 fbi / fbset 工具
+// ============================================================================
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/* 默认 i2c6 (@fec80000)。按探测结果改为 &i2c4 / &i2c7 等 */
+&i2c6 {
+    status = "okay";
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    ssd1306: oled@3c {
+        compatible = "solomon,ssd1306";
+        reg = <0x3c>;                 /* 7 位 I2C 地址; 若屏不亮试 0x3d */
+        status = "okay";
+        /* 若屏有 reset 脚, 打开下行注释并填正确 GPIO: */
+        /* reset-gpios = <&gpio4 15 GPIO_ACTIVE_LOW>; */
+    };
+};
