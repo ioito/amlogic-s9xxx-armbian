@@ -295,7 +295,7 @@ on:
       kernel_repo:
         description: "Set the kernel repository."
         required: false
-        default: "ioito/kernel"
+        default: "ophub/kernel"
         type: choice
         options:
           - ioito/kernel
