@@ -43,7 +43,9 @@ jobs:
           xxd "$OFFICIAL_DDR" | head -2
           export ROCKCHIP_TPL="$OFFICIAL_DDR"
           # 标准 rkbin BL31（非官方 Q1 锁机 u-boot；社区广泛使用的安全 ATF）
-          export BL31=/tmp/rkbin/bin/rk35/rk3588_bl31_v1.56.elf
+          # 用 objcopy 把 BL31 从 .elf 转成 .bin（binman 处理 .bin 更稳，避免 ELFError）
+          aarch64-linux-gnu-objcopy -O binary /tmp/rkbin/bin/rk35/rk3588_bl31_v1.56.elf /tmp/rk3588_bl31.bin
+          export BL31=/tmp/rk3588_bl31.bin
           export TEE=/tmp/rkbin/bin/rk35/rk3588_bl32_v1.23.bin
           cd /tmp/u-boot
           make evb-rk3588_defconfig
