@@ -135,6 +135,26 @@ gzip -9 -c base.img > Armbian_q1_official_ddrbin_<ver>.img.gz
 
 **产物**：`Armbian_q1_official_ddrbin_<run>.img.gz`
 
+### 6.1 构建结果（已验证成功）
+
+**已产出完整可刷写镜像（官方 Q1 ddrbin + mainline u-boot，非安全链）**：
+
+| 项 | 值 |
+|---|---|
+| 产物 | `Armbian_q1_official_ddrbin.img.gz`（877,873,887 B） |
+| 下载 | https://github.com/ioito/amlogic-s9xxx-armbian/releases/download/Armbian_q1_official_ddrbin_8/Armbian_q1_official_ddrbin.img.gz |
+| 官方 ddrbin | 77,824 B（DDR4 2112MHz，Q1 32GB）作 ROCKCHIP_TPL |
+| 新 idbloader.img | 200,704 B（官方 ddrbin + mainline spl） |
+| 新 u-boot.itb | 1,138,176 B（BL31 + mainline u-boot） |
+| 验证 | u-boot.itb 含 `ARM Trusted Firmware`；idbloader **无锁机字符串**（"OK: 无锁机逻辑"） |
+| 替换 | idbloader@seek=64，u-boot.itb@seek=16384，已写入 6.18.54 完整镜像 |
+
+**构建过程修复的问题**（记录以便复现）：
+1. 缺 `libgnutls28-dev` → mkeficapsule 编译失败 → 已加
+2. 缺 `pyelftools` → binman `ELFError is not defined` → `pip install pyelftools`
+3. BL31 需 `.elf`（binman 按 ELF 解析；转 .bin 报 `Magic number does not match`）
+4. TEE(optee) 需 ELF，rkbin 仅 .bin → 省略（可选，不影响引导）
+
 ---
 
 ## 7. 备用命令（参考）
