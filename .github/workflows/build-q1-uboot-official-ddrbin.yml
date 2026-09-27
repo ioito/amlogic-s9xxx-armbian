@@ -48,7 +48,7 @@ jobs:
           # 标准 rkbin BL31（非官方 Q1 锁机 u-boot；社区广泛使用的安全 ATF）
           # 必须用 .elf（binman 按 ELF 解析 BL31；pyelftools 已装）
           export BL31=/tmp/rkbin/bin/rk35/rk3588_bl31_v1.56.elf
-          export TEE=/tmp/rkbin/bin/rk35/rk3588_bl32_v1.23.bin
+          # TEE(optee) 可选且 binman 需 ELF；rkbin 只有 .bin 故省略（不影响引导，BL31 即核心）
           cd /tmp/u-boot
           make evb-rk3588_defconfig
           make CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc)
