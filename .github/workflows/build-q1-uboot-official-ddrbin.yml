@@ -1,0 +1,95 @@
+name: Build Q1 U-Boot with Official DDRBin
+
+# 用官方 Q1 ddrbin（rk3588_ddr_lp4_2112.bin，DDR4 32GB 专用）编译 U-Boot，
+# 生成完整非安全引导链（idbloader + u-boot.itb），替换进 ophub 完整镜像。
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_image_url:
+        description: 'ophub 完整镜像 .img.gz 下载 URL（默认 6.18.54 交付镜像）'
+        required: false
+        default: 'https://github.com/ioito/amlogic-s9xxx-armbian/releases/download/Armbian_resolute_arm64_server_2026.09/Armbian_26.11.0_rockchip_q1_resolute_6.18.54_server_2026.09.27.img.gz'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo (含官方 ddrbin q1/files/)
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu bc bison flex libssl-dev make \
+            device-tree-compiler swig python3-setuptools python3-dev libpython3-dev
+
+      - name: Clone U-Boot (mainline) and rkbin
+        run: |
+          git clone --depth 1 https://github.com/u-boot/u-boot.git /tmp/u-boot
+          git clone --depth 1 https://github.com/rockchip-linux/rkbin.git /tmp/rkbin
+          ls /tmp/rkbin/bin/rk35/rk3588_ddr_* 2>/dev/null
+
+      - name: Build U-Boot with official Q1 ddrbin as ROCKCHIP_TPL
+        run: |
+          OFFICIAL_DDR="${{ github.workspace }}/q1/files/rk3588_ddr_lp4_2112.bin"
+          test -f "$OFFICIAL_DDR" || { echo "缺少官方 ddrbin"; exit 1; }
+          echo "官方 ddrbin: $(stat -c%s "$OFFICIAL_DDR") bytes"
+          # 对比：官方 ddrbin 与 rkbin 标准 rk3588 ddrbin 开头一致（同格式）
+          xxd "$OFFICIAL_DDR" | head -2
+          export ROCKCHIP_TPL="$OFFICIAL_DDR"
+          cd /tmp/u-boot
+          make evb-rk3588_defconfig
+          make CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc)
+
+      - name: Verify build artifacts
+        run: |
+          cd /tmp/u-boot
+          ls -la idbloader.img u-boot.itb
+          echo "--- 验证 idbloader 含 DDR 特征（DDR 类型表）---"
+          grep -a -c "LPDDR" idbloader.img || true
+          echo "--- 验证 u-boot.itb 含 BL31/ATF ---"
+          strings u-boot.itb | grep -i "ARM Trusted Firmware\|BL31" | head -3
+          # 禁止带入官方锁机字符串
+          echo "--- 确认无锁机字符串 ---"
+          ! grep -a "cpu or emmc was replaced\|disable oem otp write" idbloader.img && echo "OK: 无锁机逻辑" || echo "⚠ 发现锁机字符串!"
+
+      - name: Download base full image
+        run: |
+          curl -L -o /tmp/base.img.gz "${{ github.event.inputs.base_image_url }}"
+          ls -la /tmp/base.img.gz
+          gunzip -k /tmp/base.img.gz
+          ls -la /tmp/base.img
+
+      - name: Replace idbloader + u-boot.itb into image
+        run: |
+          IMG=/tmp/base.img
+          # 校验段长度，防止覆盖后续分区
+          IDB_LEN=$(stat -c%s /tmp/u-boot/idbloader.img)
+          ITB_LEN=$(stat -c%s /tmp/u-boot/u-boot.itb)
+          echo "idbloader: $IDB_LEN bytes ; u-boot.itb: $ITB_LEN bytes"
+          # idbloader @0x8000(seek 64)，预留到 0x800000
+          if [ $IDB_LEN -gt $((0x7F8000)) ]; then echo "idbloader 超预留区!"; exit 1; fi
+          # u-boot.itb @0x800000(seek 16384)，预留约 32MB（boot 分区前）
+          if [ $ITB_LEN -gt $((0x2000000)) ]; then echo "u-boot.itb 超预留区!"; exit 1; fi
+          dd if=/tmp/u-boot/idbloader.img of=$IMG bs=512 seek=64 conv=notrunc
+          dd if=/tmp/u-boot/u-boot.itb  of=$IMG bs=512 seek=16384 conv=notrunc
+          echo "替换完成"
+
+      - name: Repack and verify
+        run: |
+          # 校验替换后引导区
+          dd if=/tmp/base.img bs=512 skip=64 count=1 2>/dev/null | xxd | head -2
+          gzip -9 -c /tmp/base.img > /tmp/Armbian_q1_official_ddrbin.img.gz
+          ls -la /tmp/Armbian_q1_official_ddrbin.img.gz
+
+      - name: Upload Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: Armbian_q1_official_ddrbin_${{ github.run_number }}
+          name: Armbian Q1 with Official DDRBin ${{ github.run_number }}
+          files: /tmp/Armbian_q1_official_ddrbin.img.gz
+          draft: true
