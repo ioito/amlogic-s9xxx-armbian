@@ -800,6 +800,11 @@ make_image() {
     # Write the specific bootloader for [ Rockchip ] boxes
     [[ "${PLATFORM}" == "rockchip" ]] && {
         bootloader_path="${uboot_path}/${PLATFORM}/${board}"
+        # 魔云腾 Q1 在 ophub/u-boot 无专属目录，复用 RK3588 通用 loader（rock5b，SoC 级通用，含 idbloader.img + u-boot.itb）
+        [[ "${board}" == "q1" && ! -d "${bootloader_path}" ]] && {
+            bootloader_path="${uboot_path}/${PLATFORM}/rock5b"
+            echo -e "${INFO} For [ ${board} ] use RK3588 generic loader from [ rock5b ]."
+        }
         if [[ -n "${BOOTLOADER_IMG}" && -f "${bootloader_path}/${BOOTLOADER_IMG}" ]] &&
             [[ -n "${MAINLINE_UBOOT}" && -f "${bootloader_path}/${MAINLINE_UBOOT}" ]] &&
             [[ -n "${TRUST_IMG}" && -f "${bootloader_path}/${TRUST_IMG}" ]]; then
