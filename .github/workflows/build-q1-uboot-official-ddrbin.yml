@@ -30,7 +30,8 @@ jobs:
 
       - name: Clone U-Boot (mainline) and rkbin
         run: |
-          git clone --depth 1 https://github.com/u-boot/u-boot.git /tmp/u-boot
+          # 固定稳定 tag（master 的 binman 有 ELFError bug）
+          git clone --depth 1 --branch v2025.04 https://github.com/u-boot/u-boot.git /tmp/u-boot
           git clone --depth 1 https://github.com/rockchip-linux/rkbin.git /tmp/rkbin
           ls /tmp/rkbin/bin/rk35/rk3588_ddr_* 2>/dev/null
 
