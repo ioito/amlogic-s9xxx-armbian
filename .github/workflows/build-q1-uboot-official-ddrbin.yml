@@ -27,6 +27,8 @@ jobs:
           sudo apt-get install -y gcc-aarch64-linux-gnu bc bison flex libssl-dev make \
             device-tree-compiler swig python3-setuptools python3-dev libpython3-dev \
             libgnutls28-dev libcrypto++-dev
+          # binman 需要 pyelftools（否则 ELFError 未定义）
+          python3 -m pip install --break-system-packages pyelftools
 
       - name: Clone U-Boot (mainline) and rkbin
         run: |
